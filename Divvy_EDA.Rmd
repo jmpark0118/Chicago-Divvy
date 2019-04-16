@@ -1,0 +1,227 @@
+---
+title: "Divvy_EDA"
+author: "jmpark"
+date: "2019년 4월 16일"
+output: 
+  html_document :
+    df_print : paged
+---
+
+## LOAD LIBRARY
+```{r,warning=FALSE,message=FALSE}
+# The Usual Suspects
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(stringr)
+# Fetching
+library(rvest)
+# Cleaning column names
+library(janitor)
+# Date/Time formatting
+library(lubridate)
+# Maps
+library(ggmap)
+# Used for animated density plots
+library(gganimate)
+# Only needed for interactive maps
+library(leaflet)
+library(leaflet.extras)
+
+```
+
+## LOAD DATA
+```{r, message = FALSE, warning = FALSE}
+load('C:/Users/jeong/Documents/3SEMESTER/통계그래픽스/과제/graphics_hw5_1415.RData')
+load('C:/Users/jeong/Documents/3SEMESTER/통계그래픽스/과제/graphics_hw5_1617.RData')
+```
+
+### 2014
+```{r, message = FALSE, warning = FALSE}
+head(rides14)
+rides14_2 <- rides14
+rides14_2 %<>% filter(!is.na(birthyear), age<=80)
+
+```
+
+#### 주별/월별 분포 살펴보기
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Histogram
+ggplot(data=rides14_2, aes(x=week, fill= month_text)) +
+  geom_histogram(alpha=.9) + theme_fivethirtyeight() + 
+  ggtitle("Ride Frequency by Week of Year 2014") + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Density plot
+ggplot(data=rides14_2, aes(x=week, fill= age_bin)) +
+  geom_histogram(alpha=.9,aes(y=..density..)) + theme_fivethirtyeight() + 
+  ggtitle("Ride Distribution by Week of Year 2014") + 
+  geom_density(alpha=0,color=rgb(1,0,0,.4)) + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Start time
+ggplot(rides14_2 %>% filter(month > "4월", month < "10월") %>% droplevels(),
+       aes(x=mm, fill= age_bin)) +
+  geom_density(alpha=.6) +
+  scale_x_continuous(labels = c("5am","8am","1:30pm","5pm","8pm"),
+                     breaks = c(300,480,750,1020,1200)) + 
+  labs(fill="",title="Divvy 2014 Start Times") + 
+  theme_fivethirtyeight() +
+  theme(strip.background = element_rect(fill = "#FFFFFF")) +
+  scale_fill_viridis_d(option="A") + 
+  facet_grid(usertype~start_day_type, scales = 'free_y')
+
+
+```
+
+
+
+### 2015
+```{r, message = FALSE, warning = FALSE}
+head(rides15)
+rides15_2 <- rides15
+rides15_2 %<>% filter(!is.na(birthyear), age<=80)
+
+
+```
+
+#### 주별/월별 분포 살펴보기
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Histogram
+ggplot(data=rides15_2[which(rides15_2$age<=80),], aes(x=week, fill= month_text)) +
+  geom_histogram(alpha=.9) + theme_fivethirtyeight() + 
+  ggtitle("Ride Frequency by Week of Year 2015") + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Density plot
+ggplot(data=rides15_2, aes(x=week, fill= age_bin)) +
+  geom_histogram(alpha=.9,aes(y=..density..)) + theme_fivethirtyeight() + 
+  ggtitle("Ride Distribution by Week of Year 2015") + 
+  geom_density(alpha=0,color=rgb(1,0,0,.4)) + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Start time
+ggplot(rides15_2 %>% filter(month > "4월",month < "10월") %>% droplevels(),
+       aes(x=mm, fill= age_bin)) +
+  geom_density(alpha=.6) +
+  scale_x_continuous(labels = c("5am","8am","1:30pm","5pm","8pm"),
+                     breaks = c(300,480,750,1020,1200)) + 
+  labs(fill="",title="Divvy 2015 Start Times") + 
+  theme_fivethirtyeight() +
+  theme(strip.background = element_rect(fill = "#FFFFFF")) +
+  scale_fill_viridis_d(option="A") + 
+  facet_grid(usertype~start_day_type, scales = 'free_y')
+
+
+```
+
+
+
+### 2016
+```{r, message = FALSE, warning = FALSE}
+head(rides16)
+rides16_2 <- rides16
+rides16_2 %<>% filter(!is.na(birthyear), age<=80)
+
+```
+
+#### 주별/월별 분포 살펴보기
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Histogram
+ggplot(data=rides16_2, aes(x=week, fill= month_text)) +
+  geom_histogram(alpha=.9) + theme_fivethirtyeight() + 
+  ggtitle("Ride Frequency by Week of Year 2016") + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Density plot
+ggplot(data=rides16_2, aes(x=week, fill= age_bin)) +
+  geom_histogram(alpha=.9,aes(y=..density..)) + theme_fivethirtyeight() + 
+  ggtitle("Ride Distribution by Week of Year 2016") + 
+  geom_density(alpha=0,color=rgb(1,0,0,.4)) + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Start time
+ggplot(rides16_2 %>% filter(month > "4월", month < "10월") %>% droplevels(),
+       aes(x=mm, fill= age_bin)) +
+  geom_density(alpha=.6) +
+  scale_x_continuous(labels = c("5am","8am","1:30pm","5pm","8pm"),
+                     breaks = c(300,480,750,1020,1200)) + 
+  labs(fill="",title="Divvy 2016 Start Times") + 
+  theme_fivethirtyeight() +
+  theme(strip.background = element_rect(fill = "#FFFFFF")) +
+  scale_fill_viridis_d(option="A") + 
+  facet_grid(usertype~start_day_type, scales = 'free_y')
+
+
+```
+
+### 2017
+```{r, message = FALSE, warning = FALSE}
+head(rides17)
+rides17_2 <- rides17
+rides17_2 %<>% filter(!is.na(birthyear), age<=80)
+
+
+```
+
+#### 주별/월별 분포 살펴보기
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8, fig.show='hold'}
+# Histogram
+ggplot(data=rides17_2, aes(x=week, fill= month_text)) +
+  geom_histogram(alpha=.9) + theme_fivethirtyeight() + 
+  ggtitle("Ride Frequency by Week of Year 2017") + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8}
+# Density plot
+ggplot(data=rides17_2, aes(x=week, fill= age_bin)) +
+  geom_histogram(alpha=.9,aes(y=..density..)) + theme_fivethirtyeight() + 
+  ggtitle("Ride Distribution by Week of Year 2017") + 
+  geom_density(alpha=0,color=rgb(1,0,0,.4)) + 
+  facet_grid(usertype~age_bin, scales = 'free_y') + scale_fill_viridis_d()
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=8}
+# Start time
+ggplot(rides17_2 %>% filter(month > "4월", month < "10월") %>% droplevels(),
+       aes(x=mm, fill= age_bin)) +
+  geom_density(alpha=.6) +
+  scale_x_continuous(labels = c("5am","8am","1:30pm","5pm","8pm"),
+                     breaks = c(300,480,750,1020,1200)) + 
+  labs(fill="",title="Divvy 2017 Start Times") + 
+  theme_fivethirtyeight() +
+  theme(strip.background = element_rect(fill = "#FFFFFF")) +
+  scale_fill_viridis_d(option="A") + 
+  facet_grid(usertype~start_day_type, scales = 'free_y')
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
