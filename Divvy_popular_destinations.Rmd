@@ -1,0 +1,747 @@
+---
+title: "HW_5_182STG08_jmpark"
+author: "jmpark"
+date: "2019년 4월 10일"
+output: 
+  html_document :
+    df_print : paged
+---
+
+## LOAD LIBRARY
+```{r,warning=FALSE,message=FALSE}
+# The Usual Suspects
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(stringr)
+# Fetching
+library(rvest)
+# Cleaning column names
+library(janitor)
+# Date/Time formatting
+library(lubridate)
+# Maps
+library(ggmap)
+# Used for animated density plots
+library(gganimate)
+# Only needed for interactive maps
+library(leaflet)
+library(leaflet.extras)
+
+```
+
+## LOAD DATA
+
+## 2017
+```{r, message=FALSE, warning=FALSE}
+#Load data
+load('C:/Users/hyun3/Desktop/jm_paper/GRAPHICS/graphics_hw5_17.RData')
+
+
+```
+
+
+* usertype(customer vs subscriber)에 따른 차이
+    + 이동경로
+    + 사용시간(시간/요일)
+    + 연령대  
+    
+
+```{r, message=FALSE, warning=FALSE}
+table(rides17$usertype)
+
+```
+
+
+#### 이동경로
+
+```{r, message=FALSE, warning=FALSE}
+travel17 <- rides17 %>%
+  group_by(usertype, from_station_name, to_station_name, from_station_id, to_station_id) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides17 = n())
+  
+travel17 %<>% left_join(station17 %>% select(latitude, longitude, id), 
+                     by = c('from_station_id' = 'id'))
+travel17 %<>% left_join(station17 %>% select(latitude, longitude, id), 
+                     by = c('to_station_id' = 'id'),
+                     suffix = c('_start', '_end'))
+
+head(travel17)
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+popular <- c('Lake Shore Dr & Ohio St',
+             'Adler Planetarium',
+             'Streeter Dr & Grand Ave',
+            'Shedd Aquarium', 
+            'Streeter Dr & Grand Ave',
+            'Field Museum', 
+            'Burnham Harbor',
+            'Michigan Ave & 14th St', 
+            'Calumet Ave & 18th St',
+            'Shore Dr & 55th St',
+            'Lake Park Ave & 53rd St',
+            'Humblodt Dr & Luis Munoz Marin Dr',
+            'California Ave & Division St',
+            'Troy St & North Ave',
+            'California Ave & North Ave',
+            'Columbus Dr & Randolph St',
+            'Michigan Ave & Washington St',
+            'Michigan Ave & Madison St',
+            'Lake Shore Dr & Monroe St',
+            'Millennium Park',
+            'Michigan Ave & Jackson Blvd',
+            'Michigan Ave & Congress Pkwy',
+            'Michigan Ave & Balbo Ave',
+            'Indiana Ave & Roosevelt Rd',
+            'Blackstone Ave & Hyde Park Blvd',
+            'Cornell Ave & Hyde Park Blvd',
+            'Kimbark Ave & 53rd St',
+            'Ellis Ave & 53rd St',
+            'Ellis Ave & 55th St',
+            'Woodlawn Ave & 55th St',
+            'University Ave & 57th St',
+            'Ellis Ave & 58th St',
+            'Harper Ave & 59th St',
+            'Museum of Science and Industry',
+            'Lake Park Ave & 56th St',
+            'Shore Drive & 55th St',
+            'Sheffield Ave & Waveland Ave',
+            'Clark St & Grace St',
+            'Clark St & Armitage Ave',
+            'Clark St & Lincoln Ave',
+            'Sedgwick St & Webster Ave',
+            'Chicago Ave & Sheridan Rd',
+            'Michigan Ave & Oak St',
+            'Ritchie Ct & Banks St',
+            'Lake Shore Dr & Belmont Ave',
+            'Clark St & North Ave',
+            'Cannon Dr & Fullerton Ave',
+            'Stockton Dr & Wrightwood Ave',
+            'Lake Shore Dr & Diversey Pkwy',
+            'Lake Shore Dr & Wellington Ave',
+            'Fort Dearborn Dr & 31st St',
+            'Dusable Harbor',
+            'Rhodes Ave & 32nd St',
+            'Marshfield Ave & Courtland St',
+            'Damen Ave & Courtland St',
+            'Milwaukee Ave & Wabansia St',
+            'Western Ave & Winnebago Ave',
+            'Albany Ave & Bloomingdale Ave',
+            'California Ave & Milwaukee Ave',
+            'Kedzie Ave & Milwaukee Ave',
+            'Milwaukee Ave & Cuyler Ave',
+            'Fairbanks Ct & Grand Ave',
+            'Streeter Dr & Illinois St',
+            'University Library (NU)',
+            'Sheridan Rd & Noyes St (NU)')
+
+```
+ 
+
+![divvy popular destinations](C:/Users/hyun3/Desktop/jm_paper/GRAPHICS/divvy.png)  
+
+
+- https://www.divvybikes.com/explore-chicago 에서 유명관광지 주변에 있는 자전거 대여소는 `popular`이라는 변수 하에 저장한다.  
+
+```{r}
+head(popular)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# * google에서 map 얻기
+df.lines <- travel17 %>%
+  group_by(usertype,
+           longitude_start,
+           latitude_start,
+           longitude_end,
+           latitude_end,
+           from_station_name,
+           to_station_name) %>%
+  summarize(rides17 = n())
+
+mpls <- get_map(c(left = min(travel17$longitude_start, na.rm = T), 
+                  bottom = min(travel17$latitude_start, na.rm = T), 
+                  right = max(travel17$longitude_start, na.rm = T), 
+                  top = max(travel17$latitude_start, na.rm = T)),
+                maptype='terrain', source='stamen', zoom=11)
+
+```
+
+- **Customer**의 이동경로 그리기 
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+# * 지도 위에 그리기
+cus <- travel17 %>% filter(usertype=='Customer') %>% 
+  ungroup() %>% arrange(rides17)
+cus %<>% mutate(n = ifelse(rides17>2000, 2000, rides17))
+cus %<>% 
+  mutate('popular'=ifelse(from_station_name %in% popular | to_station_name %in% popular, 1, 0))
+
+ggmap(mpls,darken = c(.8,"#FFFFFF")) + 
+  geom_segment(data = cus,
+               aes(x = longitude_start, 
+                   y = latitude_start,
+                   xend = longitude_end,
+                   yend = latitude_end,
+                   alpha = log(rides17)),
+               color = "#000000") + coord_cartesian() +
+  scale_alpha(range = c(0.0001, .05)) +
+  geom_point(data = cus,
+             aes(x = longitude_start, 
+                 y = latitude_start,
+                 size = sqrt(rides17),
+                 color = as.factor(popular)),
+             alpha=.05) + 
+  scale_color_manual(values = c('royalblue1', 'gold1')) +
+  scale_size_continuous(range=c(1,10)) +
+  theme_nothing() +
+  geom_text(aes(x=min(cus$longitude_start, na.rm = T),
+                y=max(cus$latitude_start, na.rm = T)), 
+            label = 'Customer travel path', 
+            vjust = 'inward', hjust = 'inward', size = 9)
+
+```
+
+* Customer의 경우는 시카고에 사는 사람들이 아닌 관광객일 가능성이 좀 더 높을 것이라고 생각된다. 위의 지도에서 노란색 점들은 관광지라고 소개된 지역 주변에 위치한 자전거 대여소이다. Customer의 이동경로를 살펴보면 관광지 주변에 좀 더 집중적으로 나타나는 것을 볼 수 있다.  
+
+
+- **Subscriber**의 이동경로 그리기 
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+# * 지도 위에 그리기
+sub <- travel17 %>% filter(usertype=='Subscriber') %>% 
+  ungroup() %>% arrange(rides17)
+sub %<>% mutate(n = ifelse(rides17>1000, 1000, rides17))
+sub %<>% 
+  mutate('popular'=ifelse(from_station_name %in% popular | to_station_name %in% popular, 1, 0))
+
+ggmap(mpls,darken = c(.8,"#FFFFFF")) + 
+  geom_segment(data = sub,
+               aes(x = longitude_start, 
+                   y = latitude_start,
+                   xend = longitude_end,
+                   yend = latitude_end,
+                   alpha = log(rides17)),
+               color = "#000000") + coord_cartesian() +
+  scale_alpha(range = c(0.0001, .05)) +
+  geom_point(data = sub,
+             aes(x = longitude_start, 
+                 y = latitude_start,
+                 size = sqrt(rides17),
+                 color = as.factor(popular)),
+             alpha=.05) + 
+  scale_color_manual(values = c('royalblue1', 'gold1')) + 
+  scale_size_continuous(range=c(1,5)) +
+  theme_nothing() +
+  geom_text(aes(x=min(sub$longitude_start, na.rm = T),
+                y=max(sub$latitude_start, na.rm = T)), 
+            label = 'Subscriber travel path', 
+            vjust = 'inward', hjust = 'inward', size = 9)
+
+```
+
+* Subscriber의 이동경로를 살펴보면 customer의 경우와 비교해 보았을 때 파란색점들이 좀 더 두드러진다. 이를 통해 관광지를 둘러보기보다는 다른 목적으로 자전거를 주로 이용한다고 생각해 볼 수 있다.  
+
+- Circle plot 그리기
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=6, fig.width=6, fig.show='hold'}
+top_cus <- as.data.frame(rides17 %>% filter(usertype=='Customer') %>% 
+  group_by(from_station_name, to_station_name) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides17 = n()) %>% ungroup %>% top_n(10))
+top_cus  # 'Customer'
+
+top_sub <- as.data.frame(rides17 %>% filter(usertype=='Subscriber') %>% 
+  group_by(from_station_name, to_station_name) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides17 = n()) %>% ungroup %>% top_n(10))
+top_sub  # 'Subscriber'
+
+library(circlize)
+grid.col <- c("Lake Shore Dr & Monroe St" = 'indianred1',
+              "Streeter Dr & Grand Ave" = 'indianred1',
+              "Michigan Ave & Oak St" = 'indianred1',
+              "Millennium Park" = 'indianred1',
+              "Theater on the Lake" = 'grey',
+              "Lake Shore Dr & North Blvd" = 'grey')
+chordDiagram(top_cus, grid.col = grid.col,
+             annotationTrackHeight = c(0.05, 0.01),
+             annotationTrack = c('grid', 'name'))
+title(main = 'Customer Top10 Rides')
+
+grid.col <- c("State St & 33rd St" = 'grey',
+              "Michigan Ave & Washington St" = 'indianred1',
+              "Clinton St & Washington Blvd" = 'grey',
+              "Morgan St & Polk St" = 'grey',
+              "Canal St & Adams St" = 'grey',
+              "Calumet Ave & 33rd St" = 'grey',
+              "Canal St & Madison St" = 'grey',
+              "Columbus Dr & Randolph St" = 'indianred1',
+              "Loomis St & Lexington St" = 'grey',
+              "MLK Jr Dr & 29th St" = 'grey',
+              "Wacker Dr & Washington St" = 'grey')
+chordDiagram(top_sub, grid.col = grid.col,
+             annotationTrackHeight = c(0.05, 0.01),
+             annotationTrack = c('grid', 'name'))
+title(main = 'Subscriber Top10 Rides')
+
+
+
+```
+
+
+#### 사용시간(시간/요일)
+```{r, message=FALSE, warning=FALSE}
+data <- xtabs(as.data.frame(rides17 %>% filter(usertype!='Dependent') %>% 
+                              group_by(usertype) %>% 
+                              count(start_day_type) %>% 
+                              select(n, usertype, start_day_type)))
+data
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+df.heatmap.start_end <- list()
+
+df.heatmap.start_end$cus_weekend <- rides17 %>% 
+  filter(usertype == 'Customer', start_day_type == 'Weekend') %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$cus_weekend)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$cus_weekday <- rides17 %>% 
+  filter(usertype == 'Customer', start_day_type == 'Weekday') %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$cus_weekday)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$sub_weekend <- rides17 %>% 
+  filter(usertype == 'Subscriber', start_day_type == 'Weekend') %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$sub_weekend)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$sub_weekday <- rides17 %>% 
+  filter(usertype == 'Subscriber', start_day_type == 'Weekday') %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$sub_weekday)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$cus_weekend$day <- "Customer_Weekend"
+df.heatmap.start_end$cus_weekday$day <- "Customer_Weekdays"
+df.heatmap.start_end$sub_weekend$day <- "Subscriber_Weekend"
+df.heatmap.start_end$sub_weekday$day <- "Subscriber_Weekdays"
+
+df.heatmap.start_end %<>% rbindlist(fill = T)
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=7, fig.height=7}
+df.heatmap.start_end2 <- df.heatmap.start_end %>% filter(!is.na(longitude))
+df.heatmap.start_end2$intensity <- log(df.heatmap.start_end2$intensity)
+
+leaflet(df.heatmap.start_end2) %>% 
+    addProviderTiles(providers$Wikimedia) %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(day=="Customer_Weekend"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "Customer_Weekend", group = "Customer_Weekend") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(day=="Customer_Weekdays"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "Customer_Weekdays", group = "Customer_Weekdays") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(day=="Subscriber_Weekend"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "Subscriber_Weekend", group = "Subscriber_Weekend") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(day=="Subscriber_Weekdays"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "Subscriber_Weekdays", group = "Subscriber_Weekdays") %>%
+    addLayersControl(
+        baseGroups = c("Customer_Weekend", "Customer_Weekdays",
+                       "Subscriber_Weekend", "Subscriber_Weekdays"),
+        options = layersControlOptions(collapsed = FALSE)
+    )
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=8}
+rides17$age_bin <- as.factor(rides17$age_bin)
+rides17$age_bin <- factor(rides17$age_bin, 
+                          levels = c('0-20 Years Old','20-40 Years Old',
+                                     '40-60 Years Old','60-80 Years Old',
+                                     '80-100 Years Old','100-120 Years Old'))
+
+ggplot(rides17 %>% filter(usertype != 'Dependent', !is.na(age)) %>% droplevels(),
+       aes(x=mm, fill= age_bin)) +
+  geom_density(alpha=.4) +
+  scale_x_continuous(labels = c("5am","8am","1:30pm","5pm","8pm"),
+                     breaks = c(300,480,750,1020,1200)) + 
+  labs(fill="",title="Divvy 2017 Start Times",x=NULL) + 
+  theme_gdocs() +
+  theme(strip.background = element_rect(fill = "#FFFFFF")) +
+  scale_fill_viridis_d(option="B") + 
+  facet_grid(usertype~start_day_type, scales = 'free_y') +
+  guides(fill = guide_legend(override.aes = list(alpha = 1), byrow = T)) 
+
+ggplot(rides17 %>% filter(mm<360, !is.na(mm)), aes(mm)) +
+  theme_bw() + 
+  geom_histogram() + 
+  scale_x_continuous(labels = c("1am","2am","3am","4am","5am","6am"),
+                     breaks = seq(60,360,by=60)) +
+  labs(x='자전거 대여 시작시간', y = NULL, title = 'Divvy 대여 시작시간')
+  
+
+ggplot(rides17 %>% filter(mm<360, !is.na(age)), 
+       aes(cut_interval(mm, 6), group = age_bin, fill = age_bin)) +
+  theme_bw() + 
+  geom_bar(position = 'dodge') + 
+  scale_x_discrete(labels = c("1am","2am","3am","4am","5am","6am")) +
+  labs(fill = '연령대', x='자전거 대여 시작시간', y = NULL, title = 'Divvy 대여 시작시간')
+
+```
+
+- 새벽시간에는 대부분의 이용자가 20,30대인 것을 확인할 수 있다.  
+
+##### 새벽시간대의 20-30대 이용자
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+dawn <- rides17 %>% filter(age_bin == '20-40 Years Old', mm<360)
+dim(dawn)
+table(dawn$usertype)
+table(dawn$gender)
+
+ggplot(dawn, aes(age)) + theme_bw() +
+  geom_freqpoly(aes(y = ..count.., color = gender), size = 1, binwidth = 1)
+ggplot(dawn, aes(tripduration)) + theme_bw() +
+  geom_freqpoly(aes(y = ..density.., color = gender), size = 1, binwidth = 60)
+summary(dawn$tripduration)
+
+subdawn <- dawn[dawn$tripduration>858,]
+table(subdawn$gender)
+table(subdawn$month)
+table(subdawn$start_day_type)
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+subdawn2 <- dawn %>%
+  group_by(usertype, from_station_name, to_station_name, from_station_id, to_station_id) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides17 = n())
+subdawn2 %<>% filter(rides17>10)
+  
+subdawn2 %<>% left_join(station17 %>% select(latitude, longitude, id), 
+                     by = c('from_station_id' = 'id'))
+subdawn2 %<>% left_join(station17 %>% select(latitude, longitude, id), 
+                     by = c('to_station_id' = 'id'),
+                     suffix = c('_start', '_end'))
+
+# * google에서 map 얻기
+df.lines <- subdawn2 %>%
+  group_by(usertype,
+           longitude_start,
+           latitude_start,
+           longitude_end,
+           latitude_end,
+           from_station_name,
+           to_station_name) %>%
+  summarize(rides17 = n())
+
+mpls <- get_map(c(left = min(subdawn2$longitude_start, na.rm = T), 
+                  bottom = min(subdawn2$latitude_start, na.rm = T), 
+                  right = max(subdawn2$longitude_start, na.rm = T), 
+                  top = max(subdawn2$latitude_start, na.rm = T)),
+                maptype='toner', source='stamen', zoom=11)
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=8, fig.height=8}
+# * 지도 위에 그리기
+subdawn2 %<>% 
+  mutate('popular'=ifelse(from_station_name %in% popular | to_station_name %in% popular, 1, 0))
+
+ggmap(mpls,darken = c(.8,"#FFFFFF"))+ 
+  geom_segment(data = subdawn2,
+               aes(x = longitude_start, 
+                   y = latitude_start,
+                   xend = longitude_end,
+                   yend = latitude_end,
+                   alpha = log(rides17)),
+               color = "#000000") + coord_cartesian() +
+  scale_alpha(range = c(0.1, 0.5))+
+  coord_cartesian() +
+  geom_point(data = subdawn2,
+             aes(x = longitude_start, 
+                 y = latitude_start,
+                 size = sqrt(rides17),
+                 color = as.factor(popular)),
+             alpha=.8) +
+  geom_point(data = subdawn2,
+             aes(x = longitude_end, 
+                 y = latitude_end,
+                 size = sqrt(rides17),
+                 color = as.factor(popular)),
+             alpha=.8) + 
+  scale_size_continuous(range=c(1,5)) + 
+  scale_color_manual(values = c('royalblue1', 'gold1')) +
+  theme_nothing() +
+  geom_text(aes(x=min(subdawn2$longitude_start),
+                y=max(subdawn2$latitude_start)), 
+            label = 'Travel path of riders at dawn\n(20-40 Years Old)', 
+            vjust = 'inward', hjust = 'inward', size = 8)
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=FALSE, echo=FALSE}
+df.heatmap.start_end <- list()
+
+df.heatmap.start_end$weekend <- dawn %>% 
+  filter(start_day_type == 'Weekend') %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$weekend)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$weekday <- dawn %>% 
+  filter(start_day_type == 'Weekday') %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$weekday)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$weekend$day <- "Weekend"
+df.heatmap.start_end$weekday$day <- "Weekdays"
+
+df.heatmap.start_end %<>% rbindlist(fill = T)
+
+
+df.heatmap.start_end2 <- df.heatmap.start_end %>% filter(!is.na(longitude))
+df.heatmap.start_end2$intensity <- log(df.heatmap.start_end2$intensity)
+
+leaflet(df.heatmap.start_end2) %>% 
+    addProviderTiles(providers$Wikimedia) %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(day=="Weekend"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "Weekend", group = "Weekend") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(day=="Weekdays"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "Weekdays", group = "Weekdays") %>%
+    addLayersControl(
+        baseGroups = c("Weekend", "Weekdays"),
+        options = layersControlOptions(collapsed = FALSE)
+    )
+
+```
+
+
+#### 시간대별 20-30대 이용자들의 Divvy 대여소
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+df.heatmap.start_end <- list()
+
+df.heatmap.start_end$hour0 <- dawn %>% 
+  filter(start_hour == 0) %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$hour0)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$hour1 <- dawn %>% 
+  filter(start_hour == 1) %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$hour1)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$hour2 <- dawn %>% 
+  filter(start_hour == 2) %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$hour2)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$hour3 <- dawn %>% 
+  filter(start_hour == 3) %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$hour3)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$hour4 <- dawn %>% 
+  filter(start_hour == 4) %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$hour4)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$hour5 <- dawn %>% 
+  filter(start_hour == 5) %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$hour5)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$hour0$start_time <- "12am"
+df.heatmap.start_end$hour1$start_time <- "1am"
+df.heatmap.start_end$hour2$start_time <- "2am"
+df.heatmap.start_end$hour3$start_time <- "3am"
+df.heatmap.start_end$hour4$start_time <- "4am"
+df.heatmap.start_end$hour5$start_time <- "5am"
+
+df.heatmap.start_end %<>% rbindlist(fill = T)
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=7, fig.height=7}
+df.heatmap.start_end2 <- df.heatmap.start_end %>% filter(!is.na(longitude))
+df.heatmap.start_end2$intensity <- log(df.heatmap.start_end2$intensity)
+
+leaflet(df.heatmap.start_end2) %>% 
+    addProviderTiles(providers$Wikimedia) %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(start_time=="12am"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "12am", group = "12am") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(start_time=="1am"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "1am", group = "1am")%>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(start_time=="2am"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "2am", group = "2am") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(start_time=="3am"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "3am", group = "3am")%>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(start_time=="4am"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "4am", group = "4am") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(start_time=="5am"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "5am", group = "5am") %>%
+    addLayersControl(
+        baseGroups = c("12am", "1am", "2am", "3am", "4am", "5am"),
+        options = layersControlOptions(collapsed = FALSE)
+    )
+
+
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+weather <- read.csv('C:/Users/hyun3/Desktop/jm_paper/GRAPHICS/weather.csv', 
+                    header = F)
+weather <- weather[,1:5]
+colnames(weather)[1:5] <- c('year','month','day','hour','temp')
+weather %<>% group_by(year,month,day) %>% 
+  mutate(max=max(temp/10,na.rm = T), min=min(temp/10,na.rm = T)) %>% 
+  mutate(climate=(max+min)/2) %>% 
+  select(year:day,climate) %>% 
+  distinct(year,month,day,climate)
+weather %<>% unite('date',year:day, sep = '-')
+weather$date <- as.Date(weather$date,'%Y-%m-%d')
+head(weather)
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+df.cal <- as.Date(rides17$start_time, '%m/%d/%Y') %>% as_date() %>% table %>% data.frame
+names(df.cal) <- c("Date","Rides")
+df.cal$Date %<>% as_date
+
+data <- left_join(df.cal,weather,by=c('Date'='date'))
+lm.fit <- lm(Rides ~ climate, data = data)
+summary(lm.fit)
+
+ggplot(data, aes(climate, Rides)) +
+  theme_bw() +
+  geom_point() +
+  geom_smooth(method = 'lm', se = F) +
+  labs(x = 'temperature (Celcius)', y ='# of rides')
+
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=2, fig.width=8}
+myLABEL <- paste0(1:12,'월')
+ggplot(data, aes(climate, Rides)) +
+  theme_bw() +
+  geom_point() +
+  facet_grid(~ month(Date),
+             labeller = labeller(`month(Date)` = 
+                                   c('1'=myLABEL[1],'2'=myLABEL[2],
+                                     '3'=myLABEL[3],'4'=myLABEL[4],
+                                     '5'=myLABEL[5],'6'=myLABEL[6],
+                                     '7'=myLABEL[7],'8'=myLABEL[8],
+                                     '9'=myLABEL[9],'10'=myLABEL[10],
+                                     '11'=myLABEL[11],'12'=myLABEL[12]))) +
+  labs(x = 'temperature (Celcius)', y ='# of rides')
+
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=3, fig.width=8, fig.show='hold'}
+library(ggTimeSeries)
+ggplot_calendar_heatmap(data, 'Date', 'climate') + 
+  theme_fivethirtyeight() + 
+  theme(legend.position = "right",
+        legend.direction = "vertical") + 
+  scale_fill_viridis_c()
+
+
+ggplot_calendar_heatmap(df.cal, 'Date', 'Rides') + 
+  theme_fivethirtyeight() + 
+  theme(legend.position = "right",
+        legend.direction = "vertical") + 
+  scale_fill_viridis_c()
+```
+
+
+
+
+
