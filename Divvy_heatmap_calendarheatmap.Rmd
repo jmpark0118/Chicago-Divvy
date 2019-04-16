@@ -1,0 +1,334 @@
+---
+title: "2014-2017 Heatmap"
+author: "jmpark"
+date: "2019년 4월 16일"
+output:
+  html_document :
+      df_print : paged
+---
+
+## LOAD LIBRARY
+```{r,warning=FALSE,message=FALSE}
+# The Usual Suspects
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(stringr)
+# Fetching
+library(rvest)
+# Cleaning column names
+library(janitor)
+# Date/Time formatting
+library(lubridate)
+# Maps
+library(ggmap)
+# Used for animated density plots
+library(gganimate)
+# Only needed for interactive maps
+library(leaflet)
+library(leaflet.extras)
+
+```
+
+## LOAD DATA
+```{r, message = FALSE, warning = FALSE}
+load('C:/Users/jeong/Documents/3SEMESTER/통계그래픽스/과제/graphics_hw5_1415.RData')
+load('C:/Users/jeong/Documents/3SEMESTER/통계그래픽스/과제/graphics_hw5_1617.RData')
+```
+
+
+
+---
+title: "HW_5_182STG08_jmpark"
+author: "jmpark"
+date: "2019년 4월 10일"
+output: 
+  html_document :
+    df_print : paged
+---
+
+## LOAD LIBRARY
+```{r,warning=FALSE,message=FALSE}
+# The Usual Suspects
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(stringr)
+# Fetching
+library(rvest)
+# Cleaning column names
+library(janitor)
+# Date/Time formatting
+library(lubridate)
+# Maps
+library(ggmap)
+# Used for animated density plots
+library(gganimate)
+# Only needed for interactive maps
+library(leaflet)
+library(leaflet.extras)
+
+```
+
+## LOAD DATA
+```{r, message = FALSE, warning = FALSE}
+load('C:/Users/jeong/Documents/3SEMESTER/통계그래픽스/과제/graphics_hw5_1415.RData')
+load('C:/Users/jeong/Documents/3SEMESTER/통계그래픽스/과제/graphics_hw5_1617.RData')
+```
+
+### 2014
+```{r, message = FALSE, warning = FALSE}
+head(rides14)
+
+table(rides14$age_bin) %>% lapply({
+  . %>% format(big.mark=",") %>% return
+})
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+rides14 %<>% left_join(station14 %>% select(latitude, longitude, id), 
+                     by = c('from_station_id' = 'id'))
+rides14 %<>% left_join(station14 %>% select(latitude, longitude, id), 
+                     by = c('to_station_id' = 'id'),
+                     suffix = c('_start', '_end'))
+
+rides14 %>%
+  group_by(from_station_name, to_station_name) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides14 = n()) %>% ungroup %>% top_n(10)
+
+```
+
+
+### 2015
+```{r, message = FALSE, warning = FALSE}
+head(rides15)
+
+table(rides15$age_bin) %>% lapply({
+  . %>% format(big.mark=",") %>% return
+})
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+rides15 %<>% left_join(station15 %>% select(latitude, longitude, id), 
+                     by = c('from_station_id' = 'id'))
+rides15 %<>% left_join(station15 %>% select(latitude, longitude, id), 
+                     by = c('to_station_id' = 'id'),
+                     suffix = c('_start', '_end'))
+
+rides15 %>%
+  group_by(from_station_name, to_station_name) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides15 = n()) %>% ungroup %>% top_n(10)
+
+```
+
+
+### 2016
+```{r, message = FALSE, warning = FALSE}
+head(rides16)
+
+table(rides16$age_bin) %>% lapply({
+  . %>% format(big.mark=",") %>% return
+})
+
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+rides16 %<>% left_join(station15 %>% select(latitude, longitude, id), 
+                     by = c('from_station_id' = 'id'))
+rides16 %<>% left_join(station15 %>% select(latitude, longitude, id), 
+                     by = c('to_station_id' = 'id'),
+                     suffix = c('_start', '_end'))
+
+rides16 %>%
+  group_by(from_station_name, to_station_name) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides16 = n()) %>% ungroup %>% top_n(10)
+
+```
+
+
+### 2017
+```{r, message = FALSE, warning = FALSE}
+head(rides17)
+
+table(rides17$age_bin) %>% lapply({
+  . %>% format(big.mark=",") %>% return
+})
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+rides17 %<>% left_join(station17 %>% select(latitude, longitude, id), 
+                     by = c('from_station_id' = 'id'))
+```
+
+```{r, message=FALSE, warning=FALSE}
+rides17 %<>% left_join(station17 %>% select(latitude, longitude, id), 
+                     by = c('to_station_id' = 'id'),
+                     suffix = c('_start', '_end'))
+```
+
+```{r, message=FALSE, warning=FALSE}
+rides17 %>%
+  group_by(from_station_name, to_station_name) %>%
+  filter(from_station_name!="NULL") %>%
+  summarize(rides17 = n()) %>% ungroup %>% top_n(10)
+
+```
+
+## 2014-2017년 자전거 이용 자료 비교하기
+* 지도상에 interactive Heatmap 형태로 그리기
+```{r, message=FALSE, warning=FALSE}
+df.heatmap.start_end <- list()
+df.heatmap.start_end$rides14 <- rides14 %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$rides14)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$rides15 <- rides15 %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$rides15)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$rides16 <- rides16 %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$rides16)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$rides17 <- rides17 %>% 
+  group_by(longitude_start, latitude_start) %>%
+  summarize(intensity = sqrt(n()))
+names(df.heatmap.start_end$rides17)[1:2] <- c("longitude","latitude")
+
+df.heatmap.start_end$rides14$year <- "2014"
+df.heatmap.start_end$rides15$year <- "2015"
+df.heatmap.start_end$rides16$year <- "2016"
+df.heatmap.start_end$rides17$year <- "2017"
+
+df.heatmap.start_end %<>% rbindlist(fill = T)
+
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+df.heatmap.start_end2 <- df.heatmap.start_end %>% filter(!is.na(longitude))
+df.heatmap.start_end2$intensity <- log(df.heatmap.start_end2$intensity)
+
+leaflet(df.heatmap.start_end2) %>% 
+    addProviderTiles(providers$CartoDB.DarkMatter) %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(year=="2014"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "2014", group = "2014") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(year=="2015"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "2015", group = "2015") %>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(year=="2016"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "2016", group = "2016")%>%
+    addHeatmap(data = df.heatmap.start_end2 %>% filter(year=="2017"),
+               lng=~longitude, 
+               lat=~latitude, 
+               intensity = ~intensity,
+               blur = 25, 
+               max = 3, radius = 20,
+               layerId = "2017", group = "2017") %>%
+    addLayersControl(
+        baseGroups = c("2014","2015","2016","2017"),
+        options = layersControlOptions(collapsed = FALSE)
+    )
+
+```
+
+* calendar heatmap
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=2, fig.width=8, fig.show='hold'}
+library(ggTimeSeries)
+# Generate frequency table
+# 2014
+df.cal <- as.Date(rides14$start_time, '%m/%d/%Y') %>% as_date() %>% table %>% data.frame
+names(df.cal) <- c("Date","Rides")
+df.cal$Date %<>% as_date
+
+ggplot_calendar_heatmap(
+  df.cal,
+  'Date',
+  'Rides'
+) + theme_fivethirtyeight() + 
+  theme(legend.position = "right",
+        legend.direction = "vertical") + 
+  scale_fill_viridis_c()
+
+# 2015
+df.cal <- as.Date(rides15$start_time, '%m/%d/%Y') %>% as_date() %>% table %>% data.frame
+names(df.cal) <- c("Date","Rides")
+df.cal$Date %<>% as_date
+
+ggplot_calendar_heatmap(
+  df.cal,
+  'Date',
+  'Rides'
+) + theme_fivethirtyeight() + 
+  theme(legend.position = "right",
+        legend.direction = "vertical") + 
+  scale_fill_viridis_c()
+
+# 2016
+df.cal <- as.Date(rides16$start_time, '%m/%d/%Y') %>% as_date() %>% table %>% data.frame
+names(df.cal) <- c("Date","Rides")
+df.cal$Date %<>% as_date
+
+ggplot_calendar_heatmap(
+  df.cal,
+  'Date',
+  'Rides'
+) + theme_fivethirtyeight() + 
+  theme(legend.position = "right",
+        legend.direction = "vertical") + 
+  scale_fill_viridis_c()
+
+# 2017
+df.cal <- as.Date(rides17$start_time, '%m/%d/%Y') %>% as_date() %>% table %>% data.frame
+names(df.cal) <- c("Date","Rides")
+df.cal$Date %<>% as_date
+
+ggplot_calendar_heatmap(
+  df.cal,
+  'Date',
+  'Rides'
+) + theme_fivethirtyeight() + 
+  theme(legend.position = "right",
+        legend.direction = "vertical") + 
+  scale_fill_viridis_c()
+
+```
+
+
+
+
+
+
